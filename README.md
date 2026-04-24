@@ -52,4 +52,3 @@ An enterprise-ready AI Gateway that provides a unified API to multiple LLM provi
 ## Testing via the Dashboard
 Once logged in, open the **Playground** tab from the sidebar. You can type prompts, force PII (e.g., "My email is test@example.com"), and see the redacted output along with the LLM's response, token count, cost, and latency.
 
-*Note: Streamlit legacy app is located in `streamlit_app.py` but is considered deprecated.*
