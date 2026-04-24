@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
@@ -6,10 +7,13 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlmodel import select
+from dotenv import load_dotenv
 from database import get_session, Role, User as DBUser
 
+load_dotenv()
+
 # JWT configuration
-SECRET_KEY = "your-secret-key-here"  # In production, use a secure secret key
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback-dev-only-key-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

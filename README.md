@@ -1,33 +1,55 @@
-# AI Gateway — Streamlit Frontend
+# AI Gateway — Enterprise Edition
 
-This repository contains a simple Streamlit frontend that connects to the FastAPI backend in the same workspace.
+An enterprise-ready AI Gateway that provides a unified API to multiple LLM providers (OpenAI, Anthropic, Google) with full observability, governance, and control.
 
-Features
-- Login (OAuth2 password flow) to obtain a bearer token from `/token`.
-- Send prompts to `/prompt` and display response preview, tokens used and estimated cost.
+## Features
+- **Multi-Provider Routing:** Fallback chains and retries across OpenAI, Anthropic, and Google Models.
+- **Data Privacy:** On-the-fly PII redaction using Microsoft Presidio (masks names, emails, credit cards, etc. before hitting the LLMs).
+- **Cost & Token Tracking:** Centralized counting of cost and token usage.
+- **Rate Limiting:** Granular budgets (per user, per department, and global).
+- **Caching:** Exact-match caching to save compute on identical requests.
+- **Guardrails:** Pre- and post-request content filtering, max length checks, JSON validation, and regex blacklisting.
+- **API Key Management:** Secure (encrypted) virtual key management for LLM providers.
+- **React Dashboard:** A premium Next.js local dashboard for admin control and playground testing.
 
-Quick start
+## Tech Stack
+- **Backend:** Python + FastAPI + SQLModel (SQLite default, easy Postgres migration).
+- **Frontend:** Next.js + React + Recharts + Vanilla CSS Design System.
 
-1. Install Python dependencies (preferably in a virtualenv):
+## How to Run
 
-```bash
-python -m pip install -r requirements.txt
-```
+1. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   npm install --prefix dashboard
+   ```
 
-2. Run the backend FastAPI app (example):
+2. **Configure Environment**
+   Update your `.env` with your API keys:
+   ```env
+   OPENAI_API_KEY="sk-..."
+   ANTHROPIC_API_KEY="sk-ant-..."
+   GOOGLE_API_KEY="AIza..."
+   JWT_SECRET_KEY="some-secure-random-string"
+   ENCRYPTION_KEY="<generate using fernet>"
+   ```
 
-```bash
-# From this repo root; the project exposes FastAPI app in main.py
-uvicorn main:app --reload
-```
+3. **Start the Backend**
+   ```bash
+   uvicorn main:app --reload --port 8000
+   ```
 
-3. Run the Streamlit frontend:
+4. **Start the Frontend Dashboard**
+   ```bash
+   cd dashboard
+   npm run dev
+   ```
 
-```bash
-streamlit run streamlit_app.py
-```
+5. **Login**
+   - Access the dashboard at `http://localhost:3000`
+   - Default login: `username: admin`, `password: admin123`
 
-4. In the sidebar set the backend URL (default http://localhost:8000), login with seeded users (admin/admin123 or user/user123), then send prompts.
+## Testing via the Dashboard
+Once logged in, open the **Playground** tab from the sidebar. You can type prompts, force PII (e.g., "My email is test@example.com"), and see the redacted output along with the LLM's response, token count, cost, and latency.
 
-Notes
-- The app uses the backend `/prompt` endpoint and expects the backend to return a JSON with `llm_response`, `tokens_used`, and `cost_usd` fields. If your backend returns different keys, adjust `streamlit_app.py` accordingly.
+*Note: Streamlit legacy app is located in `streamlit_app.py` but is considered deprecated.*

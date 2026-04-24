@@ -67,69 +67,46 @@ def anonymize_text(text: str, preserve_mapping: bool = True) -> Tuple[str, Dict[
 
     # Expanded entity list for better coverage
     entity_list = [
-        'SSN', 'PERSON', 'EMAIL', 'PHONE_NUMBER',
-        'EMAIL_ADDRESS', 'NAME', 'CREDIT_CARD', 'IP_ADDRESS',
+        'SSN', 'PERSON', 'EMAIL_ADDRESS', 'PHONE_NUMBER',
+        'CREDIT_CARD', 'IP_ADDRESS',
         'DATE_TIME', 'LOCATION', 'URL'
     ]
     results = analyzer.analyze(text=text, entities=entity_list, language='en')
 
-
-    # Build operators dict for custom masking
+    # Build operators dict for custom masking of previously-seen entities
     operators = {}
-    # Improved mapping: {(entity_type, original): masked}
     detected_pii = {}
-    from presidio_anonymizer.entities import RecognizerResult as AnonymizerRecognizerResult
-    converted_results = []
-    entity_spans = []  # Track spans for later mapping
+
     for result in results:
         original_value = text[result.start:result.end]
         entity_type = result.entity_type
         existing_mask = _mapper.get_masked_value(original_value)
         if existing_mask:
-            operators[entity_type] = OperatorConfig("custom", {"lambda": (lambda x, mask=existing_mask: str(mask))})
-        # Track entity type, original, and span
-        entity_spans.append((entity_type, original_value, result.start, result.end))
-        # Convert to anonymizer RecognizerResult
-        converted_results.append(
-            AnonymizerRecognizerResult(
-                entity_type=entity_type,
-                start=result.start,
-                end=result.end,
-                score=result.score
+            operators[entity_type] = OperatorConfig(
+                "custom", {"lambda": (lambda x, mask=existing_mask: str(mask))}
             )
-        )
 
     # Anonymize the detected PII entities
     anonymized = anonymizer.anonymize(
         text=text,
-        analyzer_results=converted_results,
+        analyzer_results=results,
         operators=operators if operators else None
     )
 
-    # Update mappings with new masked values
-    if preserve_mapping:
-        for (entity_type, original_value, start, end) in entity_spans:
-            masked_value = anonymized.text[start:end]
-            detected_pii[(entity_type, original_value)] = masked_value
-            if original_value != masked_value:
-                _mapper.add_mapping(original_value, masked_value)
-
-    return anonymized.text, detected_pii
-
-    # Anonymize the detected PII entities
-    anonymized = anonymizer.anonymize(
-        text=text,
-        analyzer_results=converted_results,
-        operators=operators if operators else None
-    )
-
-    # Update mappings with new masked values
-    if preserve_mapping:
-        for result in results:
-            original_value = text[result.start:result.end]
-            masked_value = anonymized.text[result.start:result.end]
-            detected_pii[original_value] = masked_value
-            if original_value != masked_value:
-                _mapper.add_mapping(original_value, masked_value)
+    # Build mapping using the anonymizer's built-in item tracking
+    # instead of using original indices (which break after text length changes)
+    if preserve_mapping and anonymized.items:
+        for item in anonymized.items:
+            # item has: start, end (in anonymized text), entity_type, text (replacement), operator
+            masked_value = anonymized.text[item.start:item.end]
+            # Find the original value by matching against the analyzer results
+            for result in results:
+                original_value = text[result.start:result.end]
+                if result.entity_type == item.entity_type:
+                    key = f"{item.entity_type}:{original_value}"
+                    detected_pii[key] = masked_value
+                    if original_value != masked_value:
+                        _mapper.add_mapping(original_value, masked_value)
+                    break
 
     return anonymized.text, detected_pii
